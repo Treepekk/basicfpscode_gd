@@ -1,0 +1,97 @@
+extends KinematicBody
+
+const TIMER_LIMIT = 2.0
+var timer = 0.0
+
+func _process(delta):
+	timer += delta
+	if timer > TIMER_LIMIT: # Prints every 2 seconds
+		timer = 0.0
+		get_parent().get_node("Label").set_text("fps: " + str(Engine.get_frames_per_second()))
+
+export var max_speed = 20
+export var acceleration = 5
+export var gravity = 1.5
+export var jump_impulse = 60
+export var mouse_sensitivity = 0.1
+
+onready var head = $Head
+onready var camera = $Head/eyes
+onready var camera3P = $Head/eyes
+onready var point = $Head/eyes
+
+
+var velocity = Vector3()
+var camera_x_rotation = 0
+var escaped_pressed = false
+var camera3P_active = true
+
+onready var raycast = $Head/eyes/RayCast
+
+var weapon_damage = 1
+
+var FR = 10
+var period_fr = 0
+var count_last_fire = 1000
+
+func _physics_process(delta):
+
+	var head_origin = head.get_global_transform().basis
+
+	var direction = Vector3()
+
+	if Input.is_action_pressed("ui_up"):
+		direction -= head_origin.z
+	elif Input.is_action_pressed("ui_down"):
+		direction += head_origin.z
+
+	if Input.is_action_pressed("ui_left"):
+		direction -= head_origin.x
+	elif Input.is_action_pressed("ui_right"):
+		direction += head_origin.x
+
+	if Input .is_action_pressed("ui_fire"):
+		if count_last_fire > period_fr:
+			# $Head/CameraFPS/Hand/AnimationPlayer.play("Recoil")
+			fire()
+			count_last_fire = 0
+	 
+		# $Head/CameraFPS/Hand/AnimationPlayer.stop
+	count_last_fire += delta
+	
+
+	direction = direction.normalized()
+
+	velocity = velocity.linear_interpolate(
+		direction * max_speed, acceleration * delta)
+
+	velocity.y -= gravity
+
+	if Input.is_action_just_pressed("ui_accept") and is_on_floor():
+		velocity.y += jump_impulse
+
+	velocity = move_and_slide(velocity, Vector3.UP)
+
+func fire():
+	if raycast .is_colliding():
+		var target = raycast .get_collider()
+		if target == null:
+			return
+		if target .is_in_group("Enemy"):
+			target .health -= weapon_damage
+
+
+func _input(event):
+	if event is InputEventMouseMotion:
+		head.rotate_y(deg2rad(-event.relative.x * mouse_sensitivity))
+		
+		var delta_x = event.relative.y * mouse_sensitivity
+		
+		if camera_x_rotation + delta_x > -90and camera_x_rotation +delta_x < 90:
+			camera.rotate_x(deg2rad(-delta_x))
+			camera_x_rotation += delta_x
+			
+		
+
+func _ready():
+	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
